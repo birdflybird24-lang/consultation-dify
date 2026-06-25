@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相談支援AI — デモ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-sky: #dce8f5;
+    --bg-mist: #eaf2fb;
+    --glass-bg: rgba(255,255,255,0.45);
+    --glass-border: rgba(255,255,255,0.72);
+    --glass-shadow: 0 8px 32px rgba(100,140,200,0.13);
+    --accent: #4a8fd4;
+    --accent-soft: #7ab3e6;
+    --text-main: #2c3e5a;
+    --text-sub: #6b84a3;
+    --text-light: #a0b4c8;
+    --bubble-ai: rgba(255,255,255,0.62);
+    --bubble-user: rgba(74,143,212,0.18);
+    --tag-bg: rgba(122,179,230,0.18);
+  }
+
+  body {
+    font-family: 'Noto Sans JP', 'Inter', sans-serif;
+    background: linear-gradient(145deg, #c8dff5 0%, #ddeafb 35%, #e8f1fa 65%, #d0e4f5 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 40px;
+    color: var(--text-main);
+  }
+
+  /* ── floating orbs (ambient) ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.32;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 320px; height: 320px; background: #a8cef7; top: -80px; left: -60px; }
+  .orb-2 { width: 260px; height: 260px; background: #c4e0f9; bottom: 60px; right: -40px; }
+  .orb-3 { width: 180px; height: 180px; background: #b8d9f8; top: 40%; left: 30%; }
+
+  /* ── header ── */
+  header {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 440px;
+    padding: 28px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent) 0%, #85c1f0 100%);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 12px rgba(74,143,212,0.28);
+  }
+  .brand-icon svg { width: 18px; height: 18px; fill: #fff; }
+  .brand-name {
+    font-size: 15px; font-weight: 700; letter-spacing: .04em;
+    color: var(--text-main);
+  }
+  .brand-name span {
+    font-size: 10px; font-weight: 400; color: var(--text-sub);
+    display: block; letter-spacing: .06em;
+  }
+
+  .header-badge {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px; color: var(--accent); font-weight: 500;
+    backdrop-filter: blur(12px);
+    letter-spacing: .04em;
+  }
+
+  /* ── main card ── */
+  .card {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 440px;
+    margin: 0 16px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 28px;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    overflow: hidden;
+  }
+
+  /* ── domain tags ── */
+  .domain-row {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.5);
+    display: flex; gap: 7px; flex-wrap: wrap;
+  }
+  .domain-tag {
+    background: var(--tag-bg);
+    border: 1px solid rgba(122,179,230,0.3);
+    border-radius: 20px;
+    padding: 4px 11px;
+    font-size: 11px; color: var(--accent); font-weight: 500;
+    letter-spacing: .03em;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .domain-tag:hover, .domain-tag.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .domain-tag.active { box-shadow: 0 2px 8px rgba(74,143,212,0.3); }
+
+  /* ── chat area ── */
+  .chat-area {
+    padding: 20px 20px 12px;
+    display: flex; flex-direction: column; gap: 14px;
+    min-height: 320px;
+  }
+
+  .bubble {
+    max-width: 86%;
+    border-radius: 18px;
+    padding: 12px 16px;
+    font-size: 13.5px; line-height: 1.65;
+  }
+  .bubble-ai {
+    align-self: flex-start;
+    background: var(--bubble-ai);
+    border: 1px solid var(--glass-border);
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 2px 12px rgba(100,140,200,0.10);
+  }
+  .bubble-user {
+    align-self: flex-end;
+    background: var(--bubble-user);
+    border: 1px solid rgba(122,179,230,0.35);
+    border-bottom-right-radius: 5px;
+    color: var(--text-main);
+  }
+
+  .bubble-label {
+    font-size: 10px; font-weight: 500; letter-spacing: .06em;
+    color: var(--text-light);
+    margin-bottom: 5px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .bubble-label .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-soft);
+  }
+
+  /* suggestion chips */
+  .chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 10px;
+  }
+  .chip {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(122,179,230,0.4);
+    border-radius: 14px;
+    padding: 5px 12px;
+    font-size: 11.5px; color: var(--accent);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .chip:hover {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* typing indicator */
+  .typing {
+    display: flex; gap: 4px; align-items: center;
+    padding: 4px 0;
+  }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-soft);
+    animation: bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce {
+    0%,60%,100% { transform: translateY(0); opacity: .5; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+
+  /* ── input area ── */
+  .input-area {
+    padding: 12px 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.5);
+  }
+  .input-wrap {
+    display: flex; align-items: flex-end; gap: 10px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 10px 12px 10px 16px;
+    box-shadow: 0 2px 12px rgba(100,140,200,0.08);
+  }
+  textarea {
+    flex: 1;
+    border: none; background: transparent;
+    resize: none; outline: none;
+    font-family: inherit;
+    font-size: 13.5px; color: var(--text-main);
+    line-height: 1.5;
+    min-height: 22px; max-height: 96px;
+    overflow-y: auto;
+  }
+  textarea::placeholder { color: var(--text-light); }
+
+  .send-btn {
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent) 0%, #6baee0 100%);
+    border: none; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(74,143,212,0.3);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .send-btn:hover { transform: scale(1.06); box-shadow: 0 4px 16px rgba(74,143,212,0.4); }
+  .send-btn svg { width: 16px; height: 16px; fill: #fff; }
+
+  /* ── footer note ── */
+  .footer-note {
+    position: relative; z-index: 10;
+    margin-top: 14px;
+    font-size: 10.5px; color: var(--text-light);
+    letter-spacing: .04em;
+    text-align: center;
+  }
+
+  /* ── response detail panel ── */
+  .response-panel {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 440px;
+    margin: 14px 16px 0;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 18px 20px;
+  }
+  .panel-label {
+    font-size: 10px; font-weight: 500; letter-spacing: .08em;
+    color: var(--text-light); text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .domain-result {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .domain-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 14px;
+  }
+  .domain-num {
+    font-size: 10px; font-weight: 700; color: var(--accent);
+    background: rgba(74,143,212,0.12);
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+  .domain-text {
+    font-size: 12.5px; line-height: 1.6; color: var(--text-main);
+  }
+  .domain-title {
+    font-weight: 600; font-size: 12px; color: var(--text-main);
+    margin-bottom: 2px;
+  }
+  .domain-body {
+    font-size: 11.5px; color: var(--text-sub); line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- header -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+    </div>
+    <div class="brand-name">
+      相談支援AI
+      <span>Child Welfare Assistant</span>
+    </div>
+  </div>
+  <div class="header-badge">β版</div>
+</header>
+
+<!-- main chat card -->
+<div class="card">
+
+  <!-- domain tags -->
+  <div class="domain-row">
+    <div class="domain-tag active">健康・生活</div>
+    <div class="domain-tag">運動・感覚</div>
+    <div class="domain-tag">認知・行動</div>
+    <div class="domain-tag">言語・コミュ</div>
+    <div class="domain-tag">社会性</div>
+  </div>
+
+  <!-- chat -->
+  <div class="chat-area" id="chatArea">
+    <div class="bubble bubble-ai">
+      <div class="bubble-label"><span class="dot"></span>AI アシスタント</div>
+      お子さんの状況や気になることをお聞かせください。5つの発達支援領域に沿って、具体的なアドバイスをお伝えします。
+      <div class="chips">
+        <div class="chip">感覚過敏について</div>
+        <div class="chip">集中が続かない</div>
+        <div class="chip">言葉の発達</div>
+      </div>
+    </div>
+
+    <div class="bubble bubble-user">
+      給食の時間に特定の食感が苦手で、いつも食べられずに残してしまいます。どう支援すれば良いでしょうか。
+    </div>
+
+    <div class="bubble bubble-ai">
+      <div class="bubble-label"><span class="dot"></span>AI アシスタント</div>
+      <div class="typing"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+
+  <!-- input -->
+  <div class="input-area">
+    <div class="input-wrap">
+      <textarea id="inputBox" placeholder="気になる行動や状況を入力…" rows="1"></textarea>
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- response detail panel -->
+<div class="response-panel" id="responsePanel" style="display:none;">
+  <div class="panel-label">領域別サポート提案</div>
+  <div class="domain-result">
+    <div class="domain-item">
+      <span class="domain-num">健康・生活</span>
+      <div class="domain-text">
+        <div class="domain-title">段階的な食体験の導入</div>
+        <div class="domain-body">嫌いな食感をいきなり強要せず、まず「見る・触れる」段階から始め、小さな成功体験を積み重ねます。</div>
+      </div>
+    </div>
+    <div class="domain-item">
+      <span class="domain-num">運動・感覚</span>
+      <div class="domain-text">
+        <div class="domain-title">感覚統合アプローチ</div>
+        <div class="domain-body">固有感覚・前庭感覚への適切な刺激を日常に取り入れることで、口腔内感覚への過敏が緩和されることがあります。</div>
+      </div>
+    </div>
+    <div class="domain-item">
+      <span class="domain-num">認知・行動</span>
+      <div class="domain-text">
+        <div class="domain-title">視覚支援と見通しの提供</div>
+        <div class="domain-body">「今日の給食」を事前に絵カードで確認できる環境を作り、不安を軽減します。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">情報は専門家の判断を補助するものです</div>
+
+<script>
+  // ── Dify ワークフロー設定 ──────────────────────────────
+  // Vercel環境変数から取得する場合は /api/dify などのプロキシ経由に変更
+  const DIFY_API_KEY = 'app-ZS4XuJuriemDhw0QIxXLhUeC'; // ← Dify APIキーを設定
+  const DIFY_ENDPOINT = 'https://api.dify.ai/v1/workflows/run';
+
+  // ── UI helpers ───────────────────────────────────────────
+  const ta = document.getElementById('inputBox');
+
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 96) + 'px';
+  });
+
+  document.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => {
+      ta.value = c.textContent;
+      ta.focus();
+    });
+  });
+
+  document.querySelectorAll('.domain-tag').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.domain-tag').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ── send & call Dify ─────────────────────────────────────
+  async function sendMessage() {
+    const val = ta.value.trim();
+    if (!val) return;
+
+    const area = document.getElementById('chatArea');
+
+    // 既存のtyping bubbleを削除
+    const typingBubble = area.querySelector('.typing')?.closest('.bubble');
+    if (typingBubble) typingBubble.remove();
+
+    // ユーザーメッセージ追加
+    const userBubble = document.createElement('div');
+    userBubble.className = 'bubble bubble-user';
+    userBubble.textContent = val;
+    area.appendChild(userBubble);
+
+    ta.value = '';
+    ta.style.height = 'auto';
+    setSendDisabled(true);
+
+    // typing indicator
+    const aiBubble = document.createElement('div');
+    aiBubble.className = 'bubble bubble-ai';
+    aiBubble.innerHTML = `
+      <div class="bubble-label"><span class="dot"></span>AI アシスタント</div>
+      <div class="typing"><span></span><span></span><span></span></div>
+    `;
+    area.appendChild(aiBubble);
+    area.scrollTop = area.scrollHeight;
+
+    try {
+      const result = await callDify(val);
+      renderResponse(aiBubble, result, area);
+    } catch (err) {
+      aiBubble.innerHTML = `
+        <div class="bubble-label"><span class="dot"></span>AI アシスタント</div>
+        <span style="color:#e07a7a;font-size:12.5px;">応答の取得に失敗しました。APIキーと接続を確認してください。<br><small>${err.message}</small></span>
+      `;
+    } finally {
+      setSendDisabled(false);
+      area.scrollTop = area.scrollHeight;
+    }
+  }
+
+  // ── Dify API呼び出し ────────────────────────────────────
+  async function callDify(userInput) {
+    const res = await fetch(DIFY_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DIFY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        inputs: {
+          // ワークフローの入力変数に合わせて渡す
+          // age / diagnosis / characteristics をまとめて1フィールドで受ける
+          characteristics: userInput,
+          age: '',
+          diagnosis: ''
+        },
+        response_mode: 'blocking',
+        user: 'demo-user-' + Date.now()
+      })
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errBody}`);
+    }
+
+    const data = await res.json();
+    // ワークフロー出力変数 "output" を取得
+    return data?.data?.outputs?.output || '（応答を取得できませんでした）';
+  }
+
+  // ── レスポンスを画面に描画 ─────────────────────────────
+  function renderResponse(aiBubble, responseText, area) {
+    // AIバブルにテキストを表示
+    aiBubble.innerHTML = `
+      <div class="bubble-label"><span class="dot"></span>AI アシスタント</div>
+      ${escapeHtml(responseText).replace(/\n/g, '<br>')}
+    `;
+
+    // 領域別パネルを更新して表示
+    const panel = document.getElementById('responsePanel');
+    const domainResult = panel.querySelector('.domain-result');
+
+    // Difyからの出力をそのままパネルにも表示（全文）
+    domainResult.innerHTML = `
+      <div class="domain-item" style="display:block;">
+        <div class="domain-text" style="font-size:13px;line-height:1.75;color:var(--text-main);">
+          ${escapeHtml(responseText).replace(/\n/g, '<br>')}
+        </div>
+      </div>
+    `;
+
+    panel.style.display = 'block';
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function setSendDisabled(disabled) {
+    const btn = document.querySelector('.send-btn');
+    btn.style.opacity = disabled ? '0.5' : '1';
+    btn.style.pointerEvents = disabled ? 'none' : 'auto';
+  }
+</script>
+</body>
+</html>
